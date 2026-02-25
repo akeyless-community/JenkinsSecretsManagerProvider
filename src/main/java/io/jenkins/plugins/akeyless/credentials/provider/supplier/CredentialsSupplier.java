@@ -43,7 +43,8 @@ public class CredentialsSupplier {
             for (AkeylessItem item : items) {
                 // Full path for get-secret-value (same as CLI: akeyless get-secret-value --name /CICD/jenkins/apikey)
                 String akeylessPath = fullPathForApi(item);
-                String pathForId = item.getName() != null ? item.getName() : akeylessPath;
+                // Use full path for ID derivation so prefix stripping yields correct relative path
+                String pathForId = akeylessPath != null ? akeylessPath : item.getName();
                 // When path prefix is set, credential ID is relative to it (e.g. prefix /CICD/jenkins + path /CICD/jenkins/apikey -> id "apikey")
                 String id = credentialIdFromPath(pathForId, pathPrefix);
                 if (id == null) continue;
@@ -79,6 +80,7 @@ public class CredentialsSupplier {
                         }
                     }
                 }
+                LOG.log(Level.INFO, "Akeyless Credentials Provider: registered IDs for {0}: {1}", new Object[]{akeylessPath, registered});
             }
             LOG.log(Level.INFO, "Akeyless Credentials Provider: listed {0} credential(s) from Akeyless", result.size());
             return result;

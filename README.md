@@ -6,28 +6,25 @@ A Jenkins plugin that provides **CredentialsProvider** integration with [Akeyles
 
 - **Read-only** view of Akeyless static secrets as Jenkins credentials
 - **CredentialsProvider** API support: credentials appear in the global store and in pipeline `credentials()` / `withCredentials`
-- **Same authentication methods** as the [Akeyless Jenkins plugin](https://plugins.jenkins.io/akeyless/): API Key, AWS IAM, Azure AD, GCP, Kubernetes, Universal Identity, Certificate, Email (t-Token)
+- **Standalone** — authenticates directly with API Key (access_id / access_key) stored in the plugin config (encrypted). No external plugin dependencies.
 - Optional **path prefix** to limit which secrets are listed
 - **Tag-based credential types**: use Akeyless tags to map secrets to Secret Text, Username/Password, SSH Key, Certificate, or Secret File
 
 ## Requirements
 
 - Jenkins 2.479.3 or later
-- [Akeyless plugin](https://plugins.jenkins.io/akeyless/) (for Akeyless authentication credentials)
 
 ## Installation
 
-1. Install the **Akeyless** plugin (Manage Jenkins → Plugins).
-2. Add at least one **Akeyless credential** (Manage Jenkins → Credentials → Add, then choose one of: Akeyless Access Key, Akeyless Certificate, Akeyless Cloud Provider, Akeyless Universal Identity, Akeyless t-Token, or Username with password for Email).
-3. Install **Akeyless Credentials Provider** (this plugin).
-4. Configure: **Manage Jenkins → Configure System** → find **Akeyless Credentials Provider** and set:
+1. Install **Akeyless Credentials Provider** (this plugin).
+2. Configure: **Manage Jenkins → Configure System** → find **Akeyless Credentials Provider** and set:
    - **Akeyless URL**: Your Akeyless gateway URL including `/api/v2` (e.g. `https://my-gateway.akeyless.io/api/v2`).
-   - **Akeyless credential**: Choose the credential that authenticates to Akeyless. This dropdown lists credentials created with the Akeyless plugin (Akeyless Access Key, Akeyless Certificate, Akeyless Cloud, etc.). **If the list is empty**, add one first under **Manage Jenkins → Credentials → (global) → Add** and create an Akeyless credential, then return here and select it.
+   - **Access ID**: Your Akeyless access ID (e.g. `p-abc123`).
+   - **Access Key**: Your Akeyless access key (stored encrypted by Jenkins).
    - **Path prefix (optional)**: Leave empty to list all static secrets, or set a path (e.g. `/jenkins/prod`) to limit which secrets are exposed.
-   - **Skip SSL verification**: Enable only for testing with self-signed certificates.
    Click **Save**.
 
-**When does Jenkins call Akeyless?** Jenkins contacts Akeyless when it needs to list or resolve credentials: e.g. when you open **Manage Jenkins → Credentials** (or the global credentials list), when you open the **Akeyless** store, or when a pipeline runs and uses `credentials('id')`. In the Jenkins log you should see lines like `Akeyless Credentials Provider: listing secrets from Akeyless` and `listed N credential(s) from Akeyless`. If you see `config null or not configured` or `could not build client`, check that URL and Akeyless credential are set and the credential exists.
+**When does Jenkins call Akeyless?** Jenkins contacts Akeyless when it needs to list or resolve credentials: e.g. when you open **Manage Jenkins → Credentials**, when a pipeline runs and uses `credentials('id')`, etc. In the Jenkins log you should see lines like `Akeyless Credentials Provider: listing secrets from Akeyless` and `listed N credential(s) from Akeyless`.
 
 ## Usage
 
@@ -80,9 +77,9 @@ node {
 ## Configuration
 
 - **Akeyless URL**: Gateway URL including `/api/v2` (e.g. `https://my-gateway.akeyless.io/api/v2`).
-- **Akeyless authentication**: A Jenkins credential that authenticates to Akeyless (from the Akeyless plugin).
+- **Access ID**: Your Akeyless access ID (e.g. `p-abc123`).
+- **Access Key**: Your Akeyless access key (stored encrypted by Jenkins).
 - **Path prefix (optional)**: Only list static secrets under this path (e.g. `/jenkins/prod`).
-- **Skip SSL verification**: Enable only for development/testing.
 
 ## Configuration as Code (CasC)
 
@@ -92,9 +89,9 @@ Example:
 unclassified:
   akeylessCredentialsProviderConfig:
     akeylessUrl: "https://my-gateway.akeyless.io/api/v2"
-    credentialId: "akeyless-api-key-cred"
+    accessId: "p-abc123"
+    accessKey: "your-access-key"
     pathPrefix: "/jenkins"
-    skipSslVerification: false
 ```
 
 ## Building

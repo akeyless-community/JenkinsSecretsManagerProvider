@@ -1,20 +1,23 @@
-# Build output
+# Maven
 target/
+pom.xml.tag
+pom.xml.releaseBackup
+*.jar
+*.war
+*.hpi
+*.jpi
+!src/main/resources/**/*.jar
 
-# IDE files
-*.iml
+# IDE
 .idea/
+*.iml
+*.ipr
+*.iws
 .project
 .classpath
 .settings/
 .vscode/
 
-# OS files
+# OS
 .DS_Store
 Thumbs.db
-
-# Maven
-dependency-reduced-pom.xml
-
-# Jenkins plugin work directory
-work/

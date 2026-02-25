@@ -17,7 +17,7 @@
     <packaging>hpi</packaging>
 
     <name>Akeyless Credentials Provider</name>
-    <description>Access credentials from Akeyless in Jenkins as CredentialsProvider (like AWS Secrets Manager Credentials Provider). Supports all Akeyless authentication methods via the Akeyless plugin.</description>
+    <description>Access credentials from Akeyless in Jenkins as CredentialsProvider (like AWS Secrets Manager Credentials Provider). Uses the Akeyless Java SDK directly with API Key authentication (access_id / access_key stored in plugin config).</description>
     <url>https://github.com/jenkinsci/akeyless-credentials-provider-plugin</url>
 
     <properties>
@@ -36,11 +36,16 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <!-- Align with BOM upper bound so enforcer passes (gson pulls in older error_prone_annotations) -->
+            <!-- Align with BOM upper bound so enforcer passes -->
             <dependency>
                 <groupId>com.google.errorprone</groupId>
                 <artifactId>error_prone_annotations</artifactId>
                 <version>2.36.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-stdlib-jdk8</artifactId>
+                <version>1.9.10</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -66,17 +71,11 @@
             <groupId>org.jenkins-ci.plugins</groupId>
             <artifactId>ssh-credentials</artifactId>
         </dependency>
-        <!-- Reuse Akeyless plugin for auth (API Key, AWS IAM, Azure, GCP, K8s, Universal Identity, Certificate, Email/t-Token) -->
+        <!-- Akeyless Java SDK for API calls (auth, list-items, get-secret-value) -->
         <dependency>
-            <groupId>io.jenkins.plugins</groupId>
-            <artifactId>akeyless</artifactId>
-            <version>62.vb_05cea_69ed08</version>
-        </dependency>
-        <!-- Parse list-items response without SDK strict model (version aligned with BOM upper bound) -->
-        <dependency>
-            <groupId>com.google.code.gson</groupId>
-            <artifactId>gson</artifactId>
-            <version>2.12.1</version>
+            <groupId>io.akeyless</groupId>
+            <artifactId>akeyless-java</artifactId>
+            <version>5.0.8</version>
         </dependency>
     </dependencies>
 

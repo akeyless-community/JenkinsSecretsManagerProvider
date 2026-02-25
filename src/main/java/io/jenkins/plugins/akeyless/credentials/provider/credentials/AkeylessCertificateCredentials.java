@@ -1,5 +1,6 @@
 package io.jenkins.plugins.akeyless.credentials.provider.credentials;
 
+import com.cloudbees.plugins.credentials.CredentialsDescriptor;
 import com.cloudbees.plugins.credentials.CredentialsUnavailableException;
 import com.cloudbees.plugins.credentials.common.StandardCertificateCredentials;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
@@ -9,19 +10,24 @@ import io.jenkins.plugins.akeyless.credentials.provider.client.AkeylessClient.Ge
 import hudson.util.Secret;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.ByteArrayInputStream;
 import java.security.KeyStore;
 
 public class AkeylessCertificateCredentials extends BaseStandardCredentials implements StandardCertificateCredentials {
 
+    private static final DescriptorImpl DESCRIPTOR_INSTANCE = new DescriptorImpl();
+
     private final String akeylessPath;
 
-    @DataBoundConstructor
     public AkeylessCertificateCredentials(String id, String akeylessPath, String description) {
         super(id, description);
         this.akeylessPath = akeylessPath != null ? akeylessPath : id;
+    }
+
+    @Override
+    public CredentialsDescriptor getDescriptor() {
+        return DESCRIPTOR_INSTANCE;
     }
 
     @NonNull
@@ -45,6 +51,12 @@ public class AkeylessCertificateCredentials extends BaseStandardCredentials impl
     @NonNull
     @Override
     public Secret getPassword() {
-        return Secret.fromString(""); // PKCS#12 with zero-length password as per AWS plugin convention
+        return Secret.fromString("");
+    }
+
+    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+        @Override
+        @NonNull
+        public String getDisplayName() { return "Akeyless Certificate"; }
     }
 }

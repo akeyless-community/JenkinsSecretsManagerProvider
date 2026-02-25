@@ -1,5 +1,6 @@
 package io.jenkins.plugins.akeyless.credentials.provider.credentials;
 
+import com.cloudbees.plugins.credentials.CredentialsDescriptor;
 import com.cloudbees.plugins.credentials.CredentialsUnavailableException;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import hudson.util.Secret;
@@ -10,7 +11,6 @@ import io.jenkins.plugins.akeyless.credentials.provider.config.AkeylessCredentia
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
-import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -18,13 +18,18 @@ import java.util.logging.Logger;
 public class AkeylessStringCredentials extends BaseStandardCredentials implements StringCredentials {
 
     private static final Logger LOG = Logger.getLogger(AkeylessStringCredentials.class.getName());
+    private static final DescriptorImpl DESCRIPTOR_INSTANCE = new DescriptorImpl();
 
     private final String akeylessPath;
 
-    @DataBoundConstructor
     public AkeylessStringCredentials(String id, String akeylessPath, String description) {
         super(id, description);
         this.akeylessPath = akeylessPath != null ? akeylessPath : id;
+    }
+
+    @Override
+    public CredentialsDescriptor getDescriptor() {
+        return DESCRIPTOR_INSTANCE;
     }
 
     @NonNull
@@ -43,7 +48,6 @@ public class AkeylessStringCredentials extends BaseStandardCredentials implement
         }
     }
 
-    /** Build client from global config; used by all Akeyless credential types so credentials stay serializable (no SDK references). */
     static AkeylessClient getClient() {
         AkeylessCredentialsProviderConfig config = AkeylessCredentialsProviderConfig.get();
         if (config == null || !config.isConfigured()) {
@@ -54,5 +58,11 @@ public class AkeylessStringCredentials extends BaseStandardCredentials implement
             throw new CredentialsUnavailableException("Could not connect to Akeyless (check URL and credential)");
         }
         return client;
+    }
+
+    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+        @Override
+        @NonNull
+        public String getDisplayName() { return "Akeyless Secret Text"; }
     }
 }

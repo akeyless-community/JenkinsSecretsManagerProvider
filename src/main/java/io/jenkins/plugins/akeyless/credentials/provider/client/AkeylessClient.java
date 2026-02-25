@@ -4,6 +4,7 @@ import io.akeyless.client.ApiClient;
 import io.akeyless.client.ApiException;
 import io.akeyless.client.api.V2Api;
 import io.akeyless.client.model.Auth;
+import io.akeyless.client.model.AuthOutput;
 import io.akeyless.client.model.GetSecretValue;
 import io.akeyless.client.model.ListItems;
 import io.akeyless.client.model.ListItemsInPathOutput;
@@ -11,11 +12,6 @@ import io.jenkins.plugins.akeyless.credentials.provider.auth.AuthMethod;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -58,32 +54,10 @@ public class AkeylessClient {
             LOG.log(Level.INFO, "Akeyless: authenticating with method={0}, access_id={1}",
                     new Object[]{authMethod.getClass().getSimpleName(), accessId});
             Auth auth = authMethod.buildAuth(accessId);
-
-            // The Akeyless Java SDK's Auth.toJson() includes problematic default values
-            // (gcp-audience, json, oci-auth-type, oci-group-ocid) that cause the Go gateway
-            // to fail with "json: cannot unmarshal object into Go value of type string".
-            // Bypass the SDK and send a clean JSON body with only the fields we set.
-            String body = buildCleanAuthJson(auth);
-            LOG.log(Level.INFO, "Akeyless: auth request body: {0}", body);
-
-            String authUrl = basePath + "/auth";
-            HttpClient httpClient = HttpClient.newBuilder()
-                    .connectTimeout(Duration.ofSeconds(30)).build();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(authUrl))
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            LOG.log(Level.INFO, "Akeyless: auth response status={0}", response.statusCode());
-
-            if (response.statusCode() != 200) {
-                throw new ApiException("Auth failed (HTTP " + response.statusCode() + "): " + response.body());
-            }
-
-            token = extractJsonString(response.body(), "token");
+            AuthOutput authOutput = api().auth(auth);
+            token = authOutput != null ? authOutput.getToken() : null;
             if (token == null || token.isEmpty()) {
-                throw new ApiException("Auth response had no token. Body: " + response.body());
+                throw new ApiException("Auth response had no token");
             }
             LOG.log(Level.INFO, "Akeyless: authenticated successfully with {0}", authMethod.getClass().getSimpleName());
             return token;
@@ -96,58 +70,6 @@ public class AkeylessClient {
                     new Object[]{authMethod.getClass().getSimpleName(), e.getMessage()});
             throw new ApiException("Authentication failed: " + e.getMessage());
         }
-    }
-
-    private static String buildCleanAuthJson(Auth auth) {
-        StringBuilder sb = new StringBuilder("{");
-        boolean[] first = {true};
-        appendField(sb, first, "access-id", auth.getAccessId());
-        appendField(sb, first, "access-key", auth.getAccessKey());
-        appendField(sb, first, "access-type", auth.getAccessType());
-        appendField(sb, first, "admin-email", auth.getAdminEmail());
-        appendField(sb, first, "admin-password", auth.getAdminPassword());
-        appendField(sb, first, "cert-data", auth.getCertData());
-        appendField(sb, first, "cloud-id", auth.getCloudId());
-        if ("gcp".equals(auth.getAccessType())) {
-            appendField(sb, first, "gcp-audience", auth.getGcpAudience());
-        }
-        appendField(sb, first, "jwt", auth.getJwt());
-        appendField(sb, first, "k8s-auth-config-name", auth.getK8sAuthConfigName());
-        appendField(sb, first, "k8s-service-account-token", auth.getK8sServiceAccountToken());
-        appendField(sb, first, "key-data", auth.getKeyData());
-        appendField(sb, first, "uid-token", auth.getUidToken());
-        sb.append("}");
-        return sb.toString();
-    }
-
-    private static void appendField(StringBuilder sb, boolean[] first, String key, String value) {
-        if (value == null || value.isEmpty()) return;
-        if (!first[0]) sb.append(",");
-        first[0] = false;
-        sb.append("\"").append(key).append("\":\"").append(escapeJson(value)).append("\"");
-    }
-
-    private static String escapeJson(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"")
-                .replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t");
-    }
-
-    private static String extractJsonString(String json, String key) {
-        String search = "\"" + key + "\"";
-        int idx = json.indexOf(search);
-        if (idx < 0) return null;
-        idx = json.indexOf(":", idx + search.length());
-        if (idx < 0) return null;
-        idx = json.indexOf("\"", idx + 1);
-        if (idx < 0) return null;
-        int end = idx + 1;
-        while (end < json.length()) {
-            char c = json.charAt(end);
-            if (c == '\\') { end += 2; continue; }
-            if (c == '"') break;
-            end++;
-        }
-        return json.substring(idx + 1, end);
     }
 
     @Nonnull

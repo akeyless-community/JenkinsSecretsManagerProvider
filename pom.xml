@@ -13,7 +13,7 @@
 
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>akeyless-credentials-provider</artifactId>
-    <version>1.0.0</version>
+    <version>1.0.1</version>
     <packaging>hpi</packaging>
 
     <name>Akeyless Credentials Provider</name>
@@ -23,7 +23,7 @@
     <properties>
         <jenkins.baseline>2.479.3</jenkins.baseline>
         <jenkins.version>2.479.3</jenkins.version>
-        <revision>1.0.0</revision>
+        <revision>1.0.1</revision>
         <changelist></changelist>
     </properties>
 
@@ -77,6 +77,12 @@
             <artifactId>akeyless-java</artifactId>
             <version>5.0.8</version>
         </dependency>
+        <!-- Akeyless CloudId for AWS IAM, Azure AD, GCP (from akeyless-java-cloud-id-lightweight via JitPack) -->
+        <dependency>
+            <groupId>com.github.akeylesslabs</groupId>
+            <artifactId>akeyless-java-cloud-id-lightweight</artifactId>
+            <version>v0.1.2</version>
+        </dependency>
     </dependencies>
 
     <repositories>
@@ -85,8 +91,13 @@
             <url>https://repo.jenkins-ci.org/public/</url>
         </repository>
         <repository>
-            <id>io.akeyless</id>
-            <url>https://akeyless.jfrog.io/artifactory/akeyless-java/</url>
+            <id>akeyless-java</id>
+            <url>https://akeyless.jfrog.io/artifactory/akeyless-java</url>
+            <snapshots><enabled>false</enabled></snapshots>
+        </repository>
+        <repository>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
         </repository>
     </repositories>
     <pluginRepositories>

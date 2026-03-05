@@ -3,6 +3,8 @@ package io.jenkins.plugins.akeyless.credentials.provider.auth;
 import hudson.Extension;
 import hudson.model.Descriptor;
 import io.akeyless.client.model.Auth;
+import io.akeyless.cloudid.CloudIdProvider;
+import io.akeyless.cloudid.CloudProviderFactory;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
 
@@ -11,12 +13,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * GCP authentication. The identity token is auto-generated from the
- * GCP metadata service at authentication time.
+ * GCP authentication. Uses akeyless-java-cloud-id-lightweight to obtain
+ * identity token from GCP metadata server.
  */
 public class GcpAuthMethod extends AuthMethod {
 
     private static final Logger LOG = Logger.getLogger(GcpAuthMethod.class.getName());
+    private static final String ACCESS_TYPE = "gcp";
 
     private String gcpAudience;
 
@@ -32,7 +35,8 @@ public class GcpAuthMethod extends AuthMethod {
     public Auth buildAuth(@Nullable String accessId) throws Exception {
         String cloudId;
         try {
-            cloudId = CloudIdProvider.generateGcpCloudId(gcpAudience);
+            CloudIdProvider idProvider = CloudProviderFactory.getCloudIdProvider(ACCESS_TYPE);
+            cloudId = idProvider.getCloudId();
         } catch (Exception e) {
             LOG.log(Level.SEVERE, "Failed to generate GCP cloud ID from metadata", e);
             throw new Exception("GCP auth: could not obtain cloud identity. "
@@ -40,7 +44,7 @@ public class GcpAuthMethod extends AuthMethod {
         }
         Auth auth = new Auth();
         auth.setAccessId(accessId);
-        auth.setAccessType("gcp");
+        auth.setAccessType(ACCESS_TYPE);
         auth.setCloudId(cloudId);
         if (gcpAudience != null && !gcpAudience.isBlank()) {
             auth.setGcpAudience(gcpAudience);

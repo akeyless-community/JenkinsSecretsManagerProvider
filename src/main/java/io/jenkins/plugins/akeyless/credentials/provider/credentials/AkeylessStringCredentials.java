@@ -1,6 +1,5 @@
 package io.jenkins.plugins.akeyless.credentials.provider.credentials;
 
-import com.cloudbees.plugins.credentials.CredentialsDescriptor;
 import com.cloudbees.plugins.credentials.CredentialsUnavailableException;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import hudson.util.Secret;
@@ -9,7 +8,10 @@ import io.jenkins.plugins.akeyless.credentials.provider.client.AkeylessClient;
 import io.jenkins.plugins.akeyless.credentials.provider.client.AkeylessClient.GetSecretValueResult;
 import io.jenkins.plugins.akeyless.credentials.provider.config.AkeylessCredentialsProviderConfig;
 
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.Extension;
+import io.jenkins.plugins.akeyless.credentials.provider.AkeylessCredentialsProvider;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
 import java.util.logging.Level;
@@ -18,18 +20,12 @@ import java.util.logging.Logger;
 public class AkeylessStringCredentials extends BaseStandardCredentials implements StringCredentials {
 
     private static final Logger LOG = Logger.getLogger(AkeylessStringCredentials.class.getName());
-    private static final DescriptorImpl DESCRIPTOR_INSTANCE = new DescriptorImpl();
 
     private final String akeylessPath;
 
     public AkeylessStringCredentials(String id, String akeylessPath, String description) {
         super(id, description);
         this.akeylessPath = akeylessPath != null ? akeylessPath : id;
-    }
-
-    @Override
-    public CredentialsDescriptor getDescriptor() {
-        return DESCRIPTOR_INSTANCE;
     }
 
     @NonNull
@@ -60,9 +56,15 @@ public class AkeylessStringCredentials extends BaseStandardCredentials implement
         return client;
     }
 
-    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+    @Extension
+    public static class DescriptorImpl extends BaseStandardCredentials.BaseStandardCredentialsDescriptor {
         @Override
         @NonNull
         public String getDisplayName() { return "Akeyless Secret Text"; }
+
+        @Override
+        public boolean isApplicable(CredentialsProvider scope) {
+            return scope instanceof AkeylessCredentialsProvider;
+        }
     }
 }

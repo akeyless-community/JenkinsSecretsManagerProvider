@@ -1,11 +1,13 @@
 package io.jenkins.plugins.akeyless.credentials.provider.credentials;
 
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
-import com.cloudbees.plugins.credentials.CredentialsDescriptor;
-import com.cloudbees.plugins.credentials.CredentialsUnavailableException;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsUnavailableException;
+import hudson.Extension;
 import hudson.util.Secret;
 import io.akeyless.client.ApiException;
+import io.jenkins.plugins.akeyless.credentials.provider.AkeylessCredentialsProvider;
 import io.jenkins.plugins.akeyless.credentials.provider.client.AkeylessClient;
 import io.jenkins.plugins.akeyless.credentials.provider.client.AkeylessClient.GetSecretValueResult;
 
@@ -16,27 +18,25 @@ import java.util.List;
 
 public class AkeylessSSHUserPrivateKeyCredentials extends BaseStandardCredentials implements SSHUserPrivateKey {
 
-    private static final DescriptorImpl DESCRIPTOR_INSTANCE = new DescriptorImpl();
     private static final Secret NO_PASSPHRASE = Secret.fromString("");
 
     private final String akeylessPath;
-    private final String username;
+    private final String usernameFromTag;
+    private final String valueFormat;
 
-    public AkeylessSSHUserPrivateKeyCredentials(String id, String akeylessPath, String description, String username) {
+    private transient volatile SshParsed parsed;
+
+    public AkeylessSSHUserPrivateKeyCredentials(String id, String akeylessPath, String description, String usernameFromTag, String valueFormat) {
         super(id, description);
         this.akeylessPath = akeylessPath != null ? akeylessPath : id;
-        this.username = username != null ? username : "";
-    }
-
-    @Override
-    public CredentialsDescriptor getDescriptor() {
-        return DESCRIPTOR_INSTANCE;
+        this.usernameFromTag = usernameFromTag != null ? usernameFromTag : "";
+        this.valueFormat = valueFormat != null ? valueFormat : "";
     }
 
     @NonNull
     @Override
     public String getUsername() {
-        return username;
+        return load().username;
     }
 
     @Override
@@ -47,27 +47,72 @@ public class AkeylessSSHUserPrivateKeyCredentials extends BaseStandardCredential
 
     @Override
     public Secret getPassphrase() {
-        return NO_PASSPHRASE;
+        return load().passphrase;
     }
 
     @NonNull
     @Override
     public List<String> getPrivateKeys() {
-        AkeylessClient client = AkeylessStringCredentials.getClient();
-        try {
-            GetSecretValueResult r = client.getSecretValue(akeylessPath);
-            if (r.isString()) {
-                return Collections.singletonList(r.getStringValue());
+        return Collections.singletonList(load().privateKey);
+    }
+
+    private SshParsed load() {
+        SshParsed p = parsed;
+        if (p != null) {
+            return p;
+        }
+        synchronized (this) {
+            if (parsed != null) {
+                return parsed;
             }
-            throw new CredentialsUnavailableException("Secret '" + akeylessPath + "' is binary, cannot use as SSH key");
-        } catch (ApiException e) {
-            throw new CredentialsUnavailableException("Could not retrieve secret from Akeyless: " + e.getMessage(), e);
+            AkeylessClient client = AkeylessStringCredentials.getClient();
+            try {
+                GetSecretValueResult r = client.getSecretValue(akeylessPath);
+                if (!r.isString()) {
+                    throw new CredentialsUnavailableException("Secret '" + akeylessPath + "' is binary, cannot use as SSH key");
+                }
+                String raw = r.getStringValue();
+                boolean useJson = SecretJsonBodies.isJsonFormat(valueFormat)
+                        || (valueFormat.isEmpty() && SecretJsonBodies.looksLikeJsonObject(raw));
+                if (useJson) {
+                    SecretJsonBodies.SshJson j = SecretJsonBodies.parseSsh(raw);
+                    if (j == null) {
+                        throw new CredentialsUnavailableException("Secret '" + akeylessPath + "' JSON must include privateKey (and optionally username, passphrase) fields");
+                    }
+                    String user = !j.username.isEmpty() ? j.username : usernameFromTag;
+                    Secret pass = j.passphrase.isEmpty() ? NO_PASSPHRASE : Secret.fromString(j.passphrase);
+                    parsed = new SshParsed(user, j.privateKey, pass);
+                } else {
+                    parsed = new SshParsed(usernameFromTag, raw, NO_PASSPHRASE);
+                }
+                return parsed;
+            } catch (ApiException e) {
+                throw new CredentialsUnavailableException("Could not retrieve secret from Akeyless: " + e.getMessage(), e);
+            }
         }
     }
 
-    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+    private static final class SshParsed {
+        final String username;
+        final String privateKey;
+        final Secret passphrase;
+
+        SshParsed(String username, String privateKey, Secret passphrase) {
+            this.username = username != null ? username : "";
+            this.privateKey = privateKey != null ? privateKey : "";
+            this.passphrase = passphrase != null ? passphrase : NO_PASSPHRASE;
+        }
+    }
+
+    @Extension
+    public static class DescriptorImpl extends BaseStandardCredentials.BaseStandardCredentialsDescriptor {
         @Override
         @NonNull
         public String getDisplayName() { return "Akeyless SSH Private Key"; }
+
+        @Override
+        public boolean isApplicable(CredentialsProvider scope) {
+            return scope instanceof AkeylessCredentialsProvider;
+        }
     }
 }

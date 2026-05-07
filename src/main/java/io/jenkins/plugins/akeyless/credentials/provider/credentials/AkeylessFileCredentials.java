@@ -1,19 +1,19 @@
 package io.jenkins.plugins.akeyless.credentials.provider.credentials;
 
-import com.cloudbees.plugins.credentials.CredentialsDescriptor;
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsUnavailableException;
 import com.cloudbees.plugins.credentials.SecretBytes;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import io.akeyless.client.ApiException;
+import io.jenkins.plugins.akeyless.credentials.provider.AkeylessCredentialsProvider;
 import io.jenkins.plugins.akeyless.credentials.provider.client.AkeylessClient;
 import io.jenkins.plugins.akeyless.credentials.provider.client.AkeylessClient.GetSecretValueResult;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.Extension;
 
 public class AkeylessFileCredentials extends BaseStandardCredentials implements StandardCredentials {
-
-    private static final DescriptorImpl DESCRIPTOR_INSTANCE = new DescriptorImpl();
 
     private final String akeylessPath;
     private final String filename;
@@ -22,11 +22,6 @@ public class AkeylessFileCredentials extends BaseStandardCredentials implements 
         super(id, description);
         this.akeylessPath = akeylessPath != null ? akeylessPath : id;
         this.filename = filename != null ? filename : id;
-    }
-
-    @Override
-    public CredentialsDescriptor getDescriptor() {
-        return DESCRIPTOR_INSTANCE;
     }
 
     @NonNull
@@ -51,9 +46,15 @@ public class AkeylessFileCredentials extends BaseStandardCredentials implements 
         }
     }
 
-    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+    @Extension
+    public static class DescriptorImpl extends BaseStandardCredentials.BaseStandardCredentialsDescriptor {
         @Override
         @NonNull
         public String getDisplayName() { return "Akeyless Secret File"; }
+
+        @Override
+        public boolean isApplicable(CredentialsProvider scope) {
+            return scope instanceof AkeylessCredentialsProvider;
+        }
     }
 }

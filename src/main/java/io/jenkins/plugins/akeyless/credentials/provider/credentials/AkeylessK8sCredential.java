@@ -1,8 +1,10 @@
 package io.jenkins.plugins.akeyless.credentials.provider.credentials;
 
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.jenkins.plugins.akeyless.credentials.provider.AkeylessCredentialsProvider;
 import hudson.Extension;
 import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -32,9 +34,14 @@ public class AkeylessK8sCredential extends BaseStandardCredentials {
     public void setK8sAuthConfigName(String k8sAuthConfigName) { this.k8sAuthConfigName = k8sAuthConfigName; }
 
     @Extension
-    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+    public static class DescriptorImpl extends BaseStandardCredentials.BaseStandardCredentialsDescriptor {
         @Override
         @NonNull
         public String getDisplayName() { return "Akeyless Kubernetes Credentials"; }
+
+        @Override
+        public boolean isApplicable(CredentialsProvider scope) {
+            return scope instanceof AkeylessCredentialsProvider;
+        }
     }
 }

@@ -24,15 +24,34 @@ public class ApiKeyAuthMethod extends AuthMethod {
     @Override
     public Auth buildAuth(@Nullable String accessId) {
         Auth auth = new Auth();
-        auth.setAccessId(accessId);
-        auth.setAccessKey(Secret.toString(accessKey));
+        auth.setAccessId(trimCopyPasted(accessId));
+        auth.setAccessKey(normalizeAccessKey(Secret.toString(accessKey)));
         return auth;
     }
 
     @Override
     public boolean isConfigured(@Nullable String accessId) {
-        return accessId != null && !accessId.isBlank()
-                && accessKey != null && !Secret.toString(accessKey).isBlank();
+        String id = trimCopyPasted(accessId);
+        if (id == null || id.isBlank() || accessKey == null) {
+            return false;
+        }
+        return !normalizeAccessKey(Secret.toString(accessKey)).isBlank();
+    }
+
+    /** Trims the access id; Akeyless rejects auth when the id contains accidental spaces. */
+    private static String trimCopyPasted(@Nullable String s) {
+        return s == null ? null : s.trim();
+    }
+
+    /**
+     * Akeyless decodes the access key as Base64 on the gateway. Remove all whitespace so line-wrapped or
+     * copy-pasted keys still decode; trim ends so stray newlines do not break decoding.
+     */
+    private static String normalizeAccessKey(String raw) {
+        if (raw == null) {
+            return "";
+        }
+        return raw.trim().replaceAll("\\s+", "");
     }
 
     @Extension

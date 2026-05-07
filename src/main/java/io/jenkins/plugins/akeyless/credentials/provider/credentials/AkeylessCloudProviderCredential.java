@@ -1,8 +1,10 @@
 package io.jenkins.plugins.akeyless.credentials.provider.credentials;
 
+import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import io.jenkins.plugins.akeyless.credentials.provider.AkeylessCredentialsProvider;
 import hudson.Extension;
 import hudson.util.ListBoxModel;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -33,10 +35,15 @@ public class AkeylessCloudProviderCredential extends BaseStandardCredentials {
     public void setCloudProvider(String cloudProvider) { this.cloudProvider = cloudProvider; }
 
     @Extension
-    public static class DescriptorImpl extends BaseStandardCredentialsDescriptor {
+    public static class DescriptorImpl extends BaseStandardCredentials.BaseStandardCredentialsDescriptor {
         @Override
         @NonNull
         public String getDisplayName() { return "Akeyless Cloud Provider Credentials"; }
+
+        @Override
+        public boolean isApplicable(CredentialsProvider scope) {
+            return scope instanceof AkeylessCredentialsProvider;
+        }
 
         public ListBoxModel doFillCloudProviderItems() {
             ListBoxModel items = new ListBoxModel();

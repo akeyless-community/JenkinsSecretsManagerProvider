@@ -21,6 +21,9 @@ public class AkeylessCredentialsStore extends CredentialsStore {
 
     private final AkeylessCredentialsProvider provider;
 
+    /** One action per store instance so {@link CredentialsStoreAction#isVisible()} identity checks match the bound URL action. */
+    private transient CredentialsStoreAction storeAction;
+
     public AkeylessCredentialsStore(AkeylessCredentialsProvider provider) {
         super(AkeylessCredentialsProvider.class);
         this.provider = provider;
@@ -64,10 +67,14 @@ public class AkeylessCredentialsStore extends CredentialsStore {
 
     @Nullable
     @Override
-    public CredentialsStoreAction getStoreAction() {
-        return new AkeylessCredentialsStoreAction(this);
+    public synchronized CredentialsStoreAction getStoreAction() {
+        if (storeAction == null) {
+            storeAction = new AkeylessCredentialsStoreAction(this);
+        }
+        return storeAction;
     }
 
+    /** Read-only Akeyless-backed store listing; visibility does not depend on Jenkins “add credential” descriptors. */
     public static class AkeylessCredentialsStoreAction extends CredentialsStoreAction {
 
         private final AkeylessCredentialsStore store;
@@ -83,13 +90,24 @@ public class AkeylessCredentialsStore extends CredentialsStore {
         }
 
         @Override
+        public boolean isVisible() {
+            CredentialsProvider p = store.getProvider();
+            if (p == null || !p.isEnabled()) {
+                return false;
+            }
+            // Do not delegate to superclass: default isVisible also requires non-empty getCredentialsDescriptors()
+            // (can be filtered by admin restrictions) and expects getStoreAction() identity stability.
+            return store.hasPermission(CredentialsProvider.VIEW);
+        }
+
+        @Override
         public String getIconFileName() {
-            return "images/akeyless-24x24.png";
+            return null;
         }
 
         @Override
         public String getIconClassName() {
-            return isVisible() ? "icon-akeyless-credentials-store" : null;
+            return isVisible() ? "symbol-akeyless plugin-akeyless-credentials-provider" : null;
         }
 
         @Override

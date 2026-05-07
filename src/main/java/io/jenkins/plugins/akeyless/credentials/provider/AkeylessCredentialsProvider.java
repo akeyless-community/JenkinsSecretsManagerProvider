@@ -62,6 +62,6 @@ public class AkeylessCredentialsProvider extends CredentialsProvider {
 
     @Override
     public String getIconClassName() {
-        return "icon-akeyless-credentials-store";
+        return "symbol-akeyless plugin-akeyless-credentials-provider";
     }
 }

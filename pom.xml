@@ -13,7 +13,7 @@
 
     <groupId>io.jenkins.plugins</groupId>
     <artifactId>akeyless-credentials-provider</artifactId>
-    <version>1.0.1</version>
+    <version>1.0.10</version>
     <packaging>hpi</packaging>
 
     <name>Akeyless Credentials Provider</name>
@@ -23,7 +23,7 @@
     <properties>
         <jenkins.baseline>2.479.3</jenkins.baseline>
         <jenkins.version>2.479.3</jenkins.version>
-        <revision>1.0.1</revision>
+        <revision>1.0.10</revision>
         <changelist></changelist>
     </properties>
 

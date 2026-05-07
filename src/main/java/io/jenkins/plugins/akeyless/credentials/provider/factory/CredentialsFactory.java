@@ -35,14 +35,15 @@ public final class CredentialsFactory {
         String type = tags.getOrDefault(Tags.TYPE, Type.STRING);
         String username = tags.getOrDefault(Tags.USERNAME, "");
         String filename = tags.getOrDefault(Tags.FILENAME, id);
+        String valueFormat = tags.getOrDefault(Tags.VALUE_FORMAT, "").trim();
 
         switch (type) {
             case Type.STRING:
                 return Optional.of(new AkeylessStringCredentials(id, akeylessPath, description));
             case Type.USERNAME_PASSWORD:
-                return Optional.of(new AkeylessUsernamePasswordCredentials(id, akeylessPath, description, username));
+                return Optional.of(new AkeylessUsernamePasswordCredentials(id, akeylessPath, description, username, valueFormat));
             case Type.SSH_USER_PRIVATE_KEY:
-                return Optional.of(new AkeylessSSHUserPrivateKeyCredentials(id, akeylessPath, description, username));
+                return Optional.of(new AkeylessSSHUserPrivateKeyCredentials(id, akeylessPath, description, username, valueFormat));
             case Type.CERTIFICATE:
                 return Optional.of(new AkeylessCertificateCredentials(id, akeylessPath, description));
             case Type.FILE:

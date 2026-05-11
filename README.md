@@ -150,13 +150,57 @@ node {
 ## Configuration
 
 - **Akeyless URL**: Gateway API URL (used as-is; no suffix added). Example: `https://my-gateway.akeyless.io` or `https://gateway.example.com/api/v2`.
-- **Access ID**: Your Akeyless access ID (e.g. `p-abc123`), if required by your auth method.
-- **Authentication Method**: API Key, Kubernetes, GCP, Azure AD, etc.
-- **Secret paths**: One Akeyless secret path per line (e.g. `/CICD/jenkins/apikey`). Only get-secret-value is used.
+- **Access ID**: Your Akeyless access ID (e.g. `p-abc123`), if required by your auth method (not used for **Email** auth).
+- **Authentication Method**: API Key, Kubernetes, GCP, Azure AD, AWS IAM, Universal Identity, Certificate, Email.
+- **Cache**: When enabled, folder discovery (`list-items`) is cached for 5 minutes (see Features).
+- **Folder path**: Base folder in Akeyless (e.g. `/CICD/jenkins/secrets`). Cannot be `/` alone. Used with optional **Secret names**, or leave names and **Secret paths** empty for folder-only discovery.
+- **Secret names**: Optional; one short name per line when using folder + names; full path = folder + `/` + name.
+- **Secret paths**: One full Akeyless item path per line when not using folder-only discovery for those entries.
+- **Path prefix** (deprecated): legacy CasC/UI field; if **Folder path** is empty, **Path prefix** is still read as the folder path for backward compatibility.
 
 ## Configuration as Code (CasC)
 
-Example:
+The plugin registers **`AkeylessCredentialsProviderConfig`** as Jenkins **global configuration**. In CasC it appears under:
+
+```yaml
+unclassified:
+  akeylessCredentialsProviderConfig:
+    # ...
+```
+
+### Supported properties (CasC / JCasC)
+
+| Property | Type | Notes |
+|----------|------|--------|
+| `akeylessUrl` | string | Required. Gateway API URL (used as-is). |
+| `accessId` | string | Required for most auth methods; see each auth method below. |
+| `authMethod` | object | **Required** for a working configuration. Exactly one implementation (see below). |
+| `cache` | boolean | Optional; default `true` when omitted in UI (set explicitly in CasC if you want it off). |
+| `folderPath` | string | Optional. Folder for discovery or for `folderPath` + `secretNames`. |
+| `secretNames` | string | Optional; newline-separated names under `folderPath`. |
+| `secretPaths` | string | Optional; newline-separated full paths. |
+| `pathPrefix` | string | Deprecated; use `folderPath`. |
+
+Multiline strings (`secretPaths`, `secretNames`) use YAML `|` or `>` blocks as usual.
+
+### `authMethod` shape (heterogeneous describable)
+
+JCasC picks the implementation using a **single child key** per [Configuration as Code](https://github.com/jenkinsci/configuration-as-code-plugin) / **structs** rules (commonly **lowerCamelCase** of the implementation class simple name, e.g. `ApiKeyAuthMethod` → `apiKeyAuthMethod`; matching is often **case-insensitive**). The authoritative keys for your controller are whatever **Manage Jenkins → Configuration as Code → View Configuration** shows after you save the same settings in the UI.
+
+Supported implementations and their **nested fields** (bean property names):
+
+| YAML key (typical) | Java class | Fields |
+|--------------------|------------|--------|
+| `apiKeyAuthMethod` | `ApiKeyAuthMethod` | `accessKey` (secret string) |
+| `awsIamAuthMethod` | `AwsIamAuthMethod` | *(none)* — uses instance metadata / role at runtime |
+| `azureAdAuthMethod` | `AzureAdAuthMethod` | *(none)* — uses Azure IMDS at runtime |
+| `gcpAuthMethod` | `GcpAuthMethod` | optional `gcpAudience` |
+| `kubernetesAuthMethod` | `KubernetesAuthMethod` | `k8sAuthConfigName` (required); optional `k8sServiceAccountToken` (defaults to in-cluster token path when empty) |
+| `emailAuthMethod` | `EmailAuthMethod` | `adminEmail`, `adminPassword` (secret string) |
+| `certificateAuthMethod` | `CertificateAuthMethod` | `certData`, `keyData` (PEM material, secret strings) |
+| `universalIdentityAuthMethod` | `UniversalIdentityAuthMethod` | `uidToken` (secret string) |
+
+### Example: API Key + **secret paths** only
 
 ```yaml
 unclassified:
@@ -164,10 +208,89 @@ unclassified:
     akeylessUrl: "https://my-gateway.akeyless.io"
     accessId: "p-abc123"
     cache: true
+    authMethod:
+      apiKeyAuthMethod:
+        accessKey: "${AKEYLESS_ACCESS_KEY}"  # use a secret source appropriate to your deployment
     secretPaths: |
       /CICD/jenkins/apikey
       /CICD/jenkins/db-password
 ```
+
+### Example: API Key + **folder path** (recursive discovery, names empty)
+
+```yaml
+unclassified:
+  akeylessCredentialsProviderConfig:
+    akeylessUrl: "https://my-gateway.akeyless.io/api/v2"
+    accessId: "p-abc123"
+    cache: true
+    authMethod:
+      apiKeyAuthMethod:
+        accessKey: "${AKEYLESS_ACCESS_KEY}"
+    folderPath: "/CICD/jenkins/secrets"
+```
+
+### Example: API Key + **folder path** + **secret names**
+
+```yaml
+unclassified:
+  akeylessCredentialsProviderConfig:
+    akeylessUrl: "https://my-gateway.akeyless.io"
+    accessId: "p-abc123"
+    cache: true
+    authMethod:
+      apiKeyAuthMethod:
+        accessKey: "${AKEYLESS_ACCESS_KEY}"
+    folderPath: "/CICD/jenkins/secrets"
+    secretNames: |
+      jenkinsai
+      other-secret
+```
+
+### Example: **AWS IAM** (no access key in Jenkins; needs AWS role / metadata)
+
+```yaml
+unclassified:
+  akeylessCredentialsProviderConfig:
+    akeylessUrl: "https://my-gateway.akeyless.io"
+    accessId: "p-abc123"
+    cache: true
+    authMethod:
+      awsIamAuthMethod: {}
+    folderPath: "/CICD/jenkins/secrets"
+```
+
+### Example: **Kubernetes** auth
+
+```yaml
+unclassified:
+  akeylessCredentialsProviderConfig:
+    akeylessUrl: "https://my-gateway.akeyless.io"
+    accessId: "p-abc123"
+    cache: true
+    authMethod:
+      kubernetesAuthMethod:
+        k8sAuthConfigName: "my-k8s-auth-config"
+        # k8sServiceAccountToken: "..."  # optional; omit in-cluster to read default SA token
+    folderPath: "/CICD/jenkins/secrets"
+```
+
+### Example: **Email** auth (global Access ID not used for authentication)
+
+```yaml
+unclassified:
+  akeylessCredentialsProviderConfig:
+    akeylessUrl: "https://my-gateway.akeyless.io"
+    accessId: ""  # not used by Email auth; may be left empty
+    cache: true
+    authMethod:
+      emailAuthMethod:
+        adminEmail: "admin@example.com"
+        adminPassword: "${AKEYLESS_ADMIN_PASSWORD}"
+    folderPath: "/CICD/jenkins/secrets"
+```
+
+If anything in CasC is unclear, configure the plugin once in **Manage Jenkins → Configure System**, then copy the generated YAML from the **Configuration as Code** screen on the same controller.
 
 ## Troubleshooting
 
